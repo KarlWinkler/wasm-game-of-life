@@ -16,13 +16,24 @@ canvas.width = (CELL_SIZE + 1) * width + 1;
 
 const ctx = canvas.getContext('2d');
 
+const playPauseButton = document.getElementById("play-pause");
+let isPaused = false;
+
+const resetButton = document.getElementById("reset");
+
+const clearButton = document.getElementById("clear");
+
+const nextButton = document.getElementById("next-step");
+
 const renderLoop = async () => {
   await new Promise(r => setTimeout(r, 50));
-  universe.tick();
 
-  drawGrid();
-  drawCells();
+  if (!isPaused) {
+    universe.tick();
 
+    drawGrid();
+    drawCells();
+  }
 
   requestAnimationFrame(renderLoop);
 };
@@ -84,6 +95,57 @@ const bitIsSet = (n, arr) => {
 const getIndex = (row, column) => {
   return row * width + column;
 };
+
+playPauseButton.addEventListener("click", event => {
+  playPauseButton.innerHTML = isPaused ? "Pause" : "Play";
+  isPaused = !isPaused;
+});
+
+resetButton.addEventListener("click", event => {
+  universe.reset();
+  drawGrid();
+  drawCells();
+});
+
+clearButton.addEventListener("click", event => {
+  universe.clear();
+  drawGrid();
+  drawCells();
+});
+
+nextButton.addEventListener("click", event => {
+  universe.tick();
+  drawGrid();
+  drawCells();
+});
+
+canvas.addEventListener("click", event => {
+  const boundingRect = canvas.getBoundingClientRect();
+
+  const scaleX = canvas.width / boundingRect.width;
+  const scaleY = canvas.height / boundingRect.height;
+
+  const canvasLeft = (event.clientX - boundingRect.left) * scaleX;
+  const canvasTop = (event.clientY - boundingRect.top) * scaleY;
+
+  const row = Math.min(Math.floor(canvasTop / (CELL_SIZE + 1)), height - 1);
+  const col = Math.min(Math.floor(canvasLeft / (CELL_SIZE + 1)), width - 1);
+
+  if (window.event.ctrlKey) {
+    //ctrl was held down during the click
+    universe.set_glider(row, col);
+  }
+  else if (window.event.shiftKey) {
+    //shift was held down during the click
+    universe.set_pulsar(row, col);
+  }
+  else {
+    universe.toggle_cell(row, col);
+  }
+
+  drawGrid();
+  drawCells();
+});
 
 drawGrid();
 drawCells();
