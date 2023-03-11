@@ -1,6 +1,7 @@
 mod utils;
 
 extern crate console_error_panic_hook;
+
 use std::panic;
 use wasm_bindgen::prelude::*;
 use std::fmt;
@@ -35,6 +36,10 @@ pub struct Universe {
 #[wasm_bindgen]
 impl Universe {
     pub fn tick(&mut self) {
+
+        let mut cells_copy = self.cells.clone();
+        let mut changed: Vec<(u32, u32, u8)> = Vec::new();
+
         for row in 0..self.height {
             for col in 0..self.width {
                 let cell = self.get_bit(row, col);
@@ -43,36 +48,59 @@ impl Universe {
                 match (cell, live_neighbors) {
                     // Rule 1: Any live cell with fewer than two live neighbours
                     // dies, as if caused by underpopulation.
-                    (1, x) if x < 2 => self.set_bit(row, col, 0),
+                    (1, x) if x < 2 => {
+                      changed.push((row, col, 0));
+                      self.set_bit(row, col, 0, &mut cells_copy)
+                    }
 
                     // Rule 2: Any live cell with two or three live neighbours
                     // lives on to the next generation.
-                    (1, 2) | (1, 3) => self.set_bit(row, col, 1),
+                    (1, 2) | (1, 3) => {
+                      changed.push((row, col, 1));
+                      self.set_bit(row, col, 1, &mut cells_copy)
+                    }
 
                     // Rule 3: Any live cell with more than three live
                     // neighbours dies, as if by overpopulation.
-                    (1, x) if x > 3 => self.set_bit(row, col, 0),
+                    (1, x) if x > 3 => {
+                      changed.push((row, col, 0));
+                      self.set_bit(row, col, 0, &mut cells_copy)
+                    }
 
                     // Rule 4: Any dead cell with exactly three live neighbours
                     // becomes a live cell, as if by reproduction.
-                    (0, 3) => self.set_bit(row, col, 1),
+                    (0, 3) => {
+                      changed.push((row, col, 1));
+                      self.set_bit(row, col, 1, &mut cells_copy)
+                    }
 
                     // All other cells remain in the same state.
                     (otherwise, _) => otherwise,
                 };
             }
         }
+
+        for (changed_row, changed_col, value) in changed {
+          self.set_cell_bit(changed_row, changed_col, value);
+        }
     }
 
     pub fn new(width: u32, height: u32) -> Universe {
+        utils::set_logger();
+
         panic::set_hook(Box::new(console_error_panic_hook::hook));
 
         let mut rng = rand::thread_rng();
 
-        let cells = (0..width * (height / 8))
-            .map(|_| {
-                rng.gen_range(0..127)
+        let mut cells = (0..width * (height / 8))
+            .map(|i| {
+                // rng.gen_range(100..127)
+                0
             }).collect::<Vec<u8>>();
+
+        cells[13] = 0b00001000;
+        cells[21] = 0b00010000;
+        cells[29] = 0b00011100;
 
         Universe {
             width,
@@ -143,7 +171,27 @@ impl Universe {
     (byte & mask) >> bit
   }
 
-  fn set_bit(&mut self, row: u32, column: u32, value: u8) -> u8 {
+  fn set_bit(&self, row: u32, column: u32, value: u8, array: &mut Vec<u8>) -> u8 {
+    // divide by 8 to find byte
+    let idx = self.get_index(row, column);
+    let byte = array[idx/8];
+
+    // modulo 8 to find index
+    let bit = idx % 8;
+
+    if value == 0 {
+      let mask: u8 = !(1 << bit);
+      array[idx/8] = byte & mask;
+    }
+    else {
+      let mask: u8 = 1 << bit;
+      array[idx/8] = byte | mask;
+    }
+
+    value
+  }
+
+  fn set_cell_bit(&mut self, row: u32, column: u32, value: u8) -> u8 {
     // divide by 8 to find byte
     let idx = self.get_index(row, column);
     let byte = self.cells[idx/8];
@@ -160,6 +208,6 @@ impl Universe {
       self.cells[idx/8] = byte | mask;
     }
 
-    1 as u8
+    value
   }
 }
