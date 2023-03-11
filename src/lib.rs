@@ -1,7 +1,10 @@
 mod utils;
 
+extern crate console_error_panic_hook;
+use std::panic;
 use wasm_bindgen::prelude::*;
 use std::fmt;
+use rand::Rng;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -14,70 +17,62 @@ extern {
     fn alert(s: &str);
 }
 
-#[wasm_bindgen]
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Cell {
-    Dead = 0,
-    Alive = 1,
-}
+// #[wasm_bindgen]
+// #[repr(u8)]
+// #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+// pub enum Cell {
+//     Dead = 0,
+//     Alive = 1,
+// }
 
 #[wasm_bindgen]
 pub struct Universe {
     width: u32,
     height: u32,
-    cells: Vec<Cell>,
+    cells: Vec<u8>,
 }
 
 #[wasm_bindgen]
 impl Universe {
     pub fn tick(&mut self) {
-        let mut next = self.cells.clone();
-
         for row in 0..self.height {
             for col in 0..self.width {
-                let idx = self.get_index(row, col);
-                let cell = self.cells[idx];
+                let cell = self.get_bit(row, col);
                 let live_neighbors = self.live_neighbor_count(row, col);
 
-                let next_cell = match (cell, live_neighbors) {
+                match (cell, live_neighbors) {
                     // Rule 1: Any live cell with fewer than two live neighbours
                     // dies, as if caused by underpopulation.
-                    (Cell::Alive, x) if x < 2 => Cell::Dead,
+                    (1, x) if x < 2 => self.set_bit(row, col, 0),
 
                     // Rule 2: Any live cell with two or three live neighbours
                     // lives on to the next generation.
-                    (Cell::Alive, 2) | (Cell::Alive, 3) => Cell::Alive,
+                    (1, 2) | (1, 3) => self.set_bit(row, col, 1),
 
                     // Rule 3: Any live cell with more than three live
                     // neighbours dies, as if by overpopulation.
-                    (Cell::Alive, x) if x > 3 => Cell::Dead,
+                    (1, x) if x > 3 => self.set_bit(row, col, 0),
 
                     // Rule 4: Any dead cell with exactly three live neighbours
                     // becomes a live cell, as if by reproduction.
-                    (Cell::Dead, 3) => Cell::Alive,
+                    (0, 3) => self.set_bit(row, col, 1),
 
                     // All other cells remain in the same state.
                     (otherwise, _) => otherwise,
                 };
-
-                next[idx] = next_cell;
             }
         }
-
-        self.cells = next;
     }
 
     pub fn new(width: u32, height: u32) -> Universe {
-        let cells = (0..width * height)
-            .map(|i| {
-                if i % 2 == 0 || i % 7 == 0 {
-                    Cell::Alive
-                } else {
-                    Cell::Dead
-                }
-            })
-            .collect();
+        panic::set_hook(Box::new(console_error_panic_hook::hook));
+
+        let mut rng = rand::thread_rng();
+
+        let cells = (0..width * (height / 8))
+            .map(|_| {
+                rng.gen_range(0..127)
+            }).collect::<Vec<u8>>();
 
         Universe {
             width,
@@ -94,12 +89,8 @@ impl Universe {
         self.height
     }
 
-    pub fn cells(&self) -> *const Cell {
+    pub fn cells(&self) -> *const u8 {
         self.cells.as_ptr()
-    }
-
-    pub fn render(&self) -> String {
-        self.to_string()
     }
 }
 
@@ -115,8 +106,8 @@ impl Universe {
 
         let neighbor_row = (row + delta_row) % self.height;
         let neighbor_col = (column + delta_col) % self.width;
-        let idx = self.get_index(neighbor_row, neighbor_col);
-        count += self.cells[idx] as u8;
+        // let idx = self.get_index(neighbor_row, neighbor_col);
+        count += self.get_bit(neighbor_row, neighbor_col);
       }
     }
     count
@@ -126,19 +117,49 @@ impl Universe {
   fn get_index(&self, row: u32, column: u32) -> usize {
     (row * self.width + column) as usize
   }
-}
 
-impl fmt::Display for Universe {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for line in self.cells.as_slice().chunks(self.width as usize) {
-            for &cell in line {
-                let symbol = if cell == Cell::Dead { '◻' } else { '◼' };
-                write!(f, "{}", symbol)?;
-            }
-            write!(f, "\n")?;
-        }
+  fn get_bit(&self, row: u32, column: u32) -> u8 {
+    // divide by 8 to find byte
+    let idx = self.get_index(row, column);
+    let byte = self.cells[idx/8];
 
-        Ok(())
+    // modulo 8 to find index
+    let bit = idx % 8;
+    let mask = 1 << bit;
+
+    // return
+    (byte & mask) >> bit
+  }
+
+  fn get_bit_by_index(&self, idx: u32) -> u8 {
+    // divide by 8 to find byte
+    let byte = self.cells[(idx/8) as usize];
+
+    // modulo 8 to find index
+    let bit = idx % 8;
+    let mask = 1 << bit;
+
+    // return
+    (byte & mask) >> bit
+  }
+
+  fn set_bit(&mut self, row: u32, column: u32, value: u8) -> u8 {
+    // divide by 8 to find byte
+    let idx = self.get_index(row, column);
+    let byte = self.cells[idx/8];
+
+    // modulo 8 to find index
+    let bit = idx % 8;
+
+    if value == 0 {
+      let mask: u8 = !(1 << bit);
+      self.cells[idx/8] = byte & mask;
     }
-}
+    else {
+      let mask: u8 = 1 << bit;
+      self.cells[idx/8] = byte | mask;
+    }
 
+    1 as u8
+  }
+}
