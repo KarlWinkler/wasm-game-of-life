@@ -4,7 +4,7 @@ extern crate console_error_panic_hook;
 
 use std::panic;
 use wasm_bindgen::prelude::*;
-use std::fmt;
+// use std::fmt;
 use rand::Rng;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -87,20 +87,21 @@ impl Universe {
 
     pub fn new(width: u32, height: u32) -> Universe {
         utils::set_logger();
+        utils::set_panic_hook();
 
         panic::set_hook(Box::new(console_error_panic_hook::hook));
 
         let mut rng = rand::thread_rng();
 
-        let mut cells = (0..width * (height / 8))
-            .map(|i| {
-                // rng.gen_range(100..127)
-                0
+        let cells = (0..width * (height / 8))
+            .map(|_i| {
+                rng.gen_range(0..255)
             }).collect::<Vec<u8>>();
 
-        cells[13] = 0b00001000;
-        cells[21] = 0b00010000;
-        cells[29] = 0b00011100;
+        // create a glider
+        // cells[13] = 0b00001000;
+        // cells[21] = 0b00010000;
+        // cells[29] = 0b00011100;
 
         Universe {
             width,
