@@ -67,5 +67,11 @@ license, shall be dual licensed as above, without any additional terms or
 conditions.
 
 ### Reference
-
+compiling error due to outdated hash being required
 https://stackoverflow.com/a/69746387/20603963
+
+#### deployment
+https://bevy-cheatbook.github.io/platforms/wasm/gh-pages.html
+https://github.com/rustwasm/book/blob/master/src/game-of-life/deploying-to-production.md
+
+copy dist files to top level directory
