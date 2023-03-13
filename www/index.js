@@ -2,11 +2,11 @@ import { Universe } from "wasm-game-of-life";
 import { memory } from "wasm-game-of-life/wasm_game_of_life_bg";
 
 let cell_size = 5; // px
-const GRID_COLOR = "#888888";
-const DEAD_COLOR = "#999999";
-const ALIVE_COLOR = "#FEF000";
+let grid_color = "#36002d";
+let dead_color = "#36002d";
+let alive_color = "#4287f5";
 
-const universe = Universe.new(64, 64);
+const universe = Universe.new(128, 64);
 const width = universe.width();
 const height = universe.height();
 
@@ -27,6 +27,10 @@ const nextButton = document.getElementById("next-step");
 
 const zoom = document.getElementById("zoom");
 
+const backgroundColorPicker = document.getElementById("background-color");
+const forgroundColorPicker = document.getElementById("foreground-color");
+const gridColorPicker = document.getElementById("grid-color");
+
 const renderLoop = async () => {
   await new Promise(r => setTimeout(r, 50));
 
@@ -42,7 +46,7 @@ const renderLoop = async () => {
 
 const drawGrid = () => {
   ctx.beginPath();
-  ctx.strokeStyle = GRID_COLOR;
+  ctx.strokeStyle = grid_color;
 
   // Vertical lines.
   for (let i = 0; i <= width; i++) {
@@ -73,8 +77,8 @@ const drawCells = () => {
       const idx = getIndex(row, col);
 
       ctx.fillStyle = bitIsSet(idx, cells)
-        ? DEAD_COLOR
-        : ALIVE_COLOR;
+        ? dead_color
+        : alive_color;
 
       ctx.fillRect(
         col * (cell_size + 1) + 1,
@@ -125,6 +129,24 @@ zoom.addEventListener("change", event => {
   cell_size = parseInt(zoom.value);
   canvas.height = (cell_size + 1) * height + 1;
   canvas.width = (cell_size + 1) * width + 1;
+  drawGrid();
+  drawCells();
+});
+
+backgroundColorPicker.addEventListener("change", event => {
+  dead_color = backgroundColorPicker.value;
+  drawGrid();
+  drawCells();
+});
+
+forgroundColorPicker.addEventListener("change", event => {
+  alive_color = forgroundColorPicker.value;
+  drawGrid();
+  drawCells();
+});
+
+gridColorPicker.addEventListener("change", event => {
+  grid_color = gridColorPicker.value;
   drawGrid();
   drawCells();
 });
