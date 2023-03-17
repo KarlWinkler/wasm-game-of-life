@@ -1,4 +1,5 @@
 mod utils;
+mod webgl;
 
 extern crate console_error_panic_hook;
 
@@ -36,7 +37,6 @@ pub struct Universe {
 #[wasm_bindgen]
 impl Universe {
     pub fn tick(&mut self) {
-
         let mut cells_copy = self.cells.clone();
         let mut changed: Vec<(u32, u32, u8)> = Vec::new();
 
@@ -300,4 +300,17 @@ impl Universe {
           self.set_cell_bit(row, col, 1);
       }
   }
+}
+
+
+#[wasm_bindgen(start)]
+fn main() {
+  let mut webgl_result = webgl::start();
+
+  webgl_result = match webgl_result {
+      Ok(_) => Ok(()),
+      Err(e) => Err(e),
+  };
+
+  print!("WebGL Result: {:?}", webgl_result);
 }

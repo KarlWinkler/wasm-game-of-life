@@ -41,7 +41,7 @@ const renderLoop = async () => {
     drawCells();
   }
 
-  requestAnimationFrame(renderLoop);
+  // requestAnimationFrame(renderLoop);
 };
 
 const drawGrid = () => {
